@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Color Lock Deluxe</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(145deg,#0b1020,#18233d);color:#fff;min-height:100vh;display:flex;justify-content:center}
+.app{width:min(460px,100%);padding:18px}.header{display:flex;justify-content:space-between;align-items:center;gap:10px}.title{font-size:27px;font-weight:900}.sub{color:#aeb9d1;font-size:13px}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.pill{background:#202d48;border:1px solid #344361;border-radius:13px;padding:8px 12px;font-size:14px}.board{display:grid;gap:8px;background:#18243a;border:1px solid #344361;padding:12px;border-radius:22px;box-shadow:0 14px 40px #0005}.cell{position:relative;aspect-ratio:1;border:0;border-radius:14px;background:#263550;cursor:pointer;transition:transform .12s,box-shadow .15s}.cell:active{transform:scale(.92)}.cell.selected{box-shadow:0 0 0 3px #fff inset,0 0 15px #fff6}.dot{position:absolute;width:43%;height:43%;left:28.5%;top:28.5%;border-radius:50%;box-shadow:inset 0 -5px 7px #0003,0 4px 8px #0005}.lock{border:3px dashed currentColor;background:#1d2940;font-size:20px}.red{color:#ff5c61}.red .dot{background:#ff5c61}.blue{color:#4fa3ff}.blue .dot{background:#4fa3ff}.green{color:#36d399}.green .dot{background:#36d399}.yellow{color:#ffd166}.yellow .dot{background:#ffd166}.purple{color:#bd7cff}.purple .dot{background:#bd7cff}.orange{color:#ff9f43}.orange .dot{background:#ff9f43}.msg{text-align:center;min-height:28px;margin:15px 0;font-weight:800}.actions{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}.action{min-height:46px;padding:10px 15px;border:1px solid #40516f;border-radius:13px;background:#202d48;color:#fff;font-weight:800;cursor:pointer}.primary{background:#536dfe;border-color:#7184ff}.action:disabled{opacity:.4;cursor:not-allowed}.help{text-align:center;color:#9eabc4;font-size:13px;line-height:1.45;margin-top:12px}.progress{height:7px;background:#263550;border-radius:20px;overflow:hidden;margin:12px 0 16px}.bar{height:100%;width:10%;background:#7184ff;transition:width .3s}
+</style>
+
+<style>
+.obstacle-wall{background:#20283a!important;box-shadow:inset 0 0 0 3px #111827!important}
+.gate{background:repeating-linear-gradient(45deg,#f59e0b 0 6px,#7c2d12 6px 12px)!important}
+.ice{background:linear-gradient(135deg,#dbeafe,#93c5fd)!important}
+.portal{background:radial-gradient(circle,#fff 0 12%,#a78bfa 13% 35%,#4c1d95 36% 100%)!important}
+</style>
+
+
+<style>
+.challenge-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#111827;color:#fff;font-size:11px;margin-top:5px}
+</style>
+
+</head>
+<body>
+<div class="app">
+<div class="header"><div><div class="title">🔐 Color Lock</div><div class="sub">Color Lock Deluxe • 50 Levels • Score + Lives + Coins + Power-ups</div></div><div>🏆 <b id="level">1</b>/10</div></div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="stats"><div class="pill">Moves: <b id="moves">0</b></div><div class="pill">⭐ Stars: <b id="stars">3</b></div><div class="pill">🎯 Solved: <b id="solved">0</b></div></div>
+<div id="board" class="board"></div>
+<div id="message" class="msg" aria-live="polite">Move each dot onto its matching lock.</div>
+<div class="actions"><button class="action" id="reset">↻ Restart</button><button class="action" id="hint">💡 Hint</button><button class="action primary" id="next" disabled>Next Level →</button></div>
+<div class="help">Tap a colored dot, then tap an adjacent empty square. Put every dot on its matching 🔒 lock.</div>
+</div>
+<script>
+const levels=[
+{n:4,p:[['red',0,0,3,3],['blue',0,3,3,0],['green',3,0,0,3]]},
+{n:4,p:[['yellow',0,1,3,2],['purple',3,1,0,2],['blue',1,0,2,3]]},
+{n:5,p:[['red',0,0,4,4],['blue',0,4,4,0],['green',4,0,0,4],['yellow',2,0,2,4]]},
+{n:5,p:[['purple',0,2,4,2],['orange',4,2,0,2],['blue',2,0,2,4],['green',1,1,3,3]]},
+{n:5,p:[['red',0,0,4,2],['blue',0,4,3,0],['green',2,2,4,4],['yellow',4,1,1,4],['purple',3,3,0,2]]},
+{n:6,p:[['red',0,0,5,5],['blue',0,5,5,0],['green',5,1,1,5],['yellow',4,0,0,4]]},
+{n:6,p:[['purple',0,2,5,3],['orange',5,3,0,2],['blue',1,0,4,5],['green',4,5,1,0],['red',2,2,3,3]]},
+{n:6,p:[['yellow',0,0,5,2],['red',0,5,5,3],['blue',5,0,1,5],['green',5,5,0,1],['purple',2,2,3,3]]},
+{n:6,p:[['orange',0,1,5,4],['green',0,4,5,1],['blue',1,0,4,5],['red',4,0,1,5],['yellow',2,2,3,3],['purple',5,5,0,0]]},
+{n:6,p:[['red',0,0,5,5],['blue',0,5,5,0],['green',5,1,0,4],['yellow',4,0,1,5],['purple',1,1,4,4],['orange',2,3,3,2]]}
+,
+{n:6,p:[['red',0,0,5,5],['blue',0,5,5,0],['green',5,2,1,4],['yellow',4,1,0,3],['purple',1,1,4,4],['orange',3,3,2,2]]},
+{n:6,p:[['red',0,1,5,4],['blue',0,4,5,1],['green',5,0,0,5],['yellow',4,5,1,0],['purple',2,2,3,3],['orange',1,3,4,2]]},
+{n:6,p:[['red',0,2,5,3],['blue',5,3,0,2],['green',0,0,4,5],['yellow',5,5,1,1],['purple',2,1,3,4],['orange',4,2,2,3]]},
+{n:6,p:[['red',0,3,5,2],['blue',5,2,0,3],['green',1,0,4,5],['yellow',4,5,1,0],['purple',2,2,3,3],['orange',3,4,2,1]]},
+{n:6,p:[['red',0,0,5,2],['blue',0,5,5,3],['green',5,0,1,4],['yellow',5,5,2,1],['purple',1,2,4,4],['orange',4,1,2,5]]},
+{n:6,p:[['red',0,4,5,1],['blue',5,1,0,4],['green',0,0,4,5],['yellow',5,5,1,0],['purple',2,2,3,3],['orange',3,4,2,1]]},
+{n:6,p:[['red',1,0,4,5],['blue',4,5,1,0],['green',0,2,5,3],['yellow',5,3,0,2],['purple',2,1,3,4],['orange',3,4,2,1]]},
+{n:6,p:[['red',0,1,5,4],['blue',5,4,0,1],['green',0,3,4,0],['yellow',4,0,0,3],['purple',2,2,3,3],['orange',3,5,2,0]]},
+{n:6,p:[['red',0,5,5,0],['blue',0,0,5,5],['green',1,1,4,4],['yellow',1,4,4,1],['purple',2,2,3,3],['orange',3,3,2,2]]},
+{n:6,p:[['red',0,2,5,4],['blue',5,4,0,2],['green',0,4,5,2],['yellow',5,2,0,4],['purple',1,1,4,5],['orange',4,5,1,1]]},
+{n:7,p:[['red',0,0,6,6],['blue',0,6,6,0],['green',6,1,1,6],['yellow',5,0,0,5],['purple',1,2,5,4],['orange',4,4,2,2]]},
+{n:7,p:[['red',0,2,6,4],['blue',6,4,0,2],['green',0,5,6,1],['yellow',6,1,0,5],['purple',2,2,4,4],['orange',4,5,2,0]]},
+{n:7,p:[['red',0,1,6,5],['blue',6,5,0,1],['green',1,0,5,6],['yellow',5,6,1,0],['purple',2,3,4,3],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,0,6,3],['blue',0,6,6,3],['green',6,0,3,6],['yellow',6,6,3,0],['purple',2,2,4,4],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,3,6,2],['blue',6,2,0,3],['green',1,1,5,5],['yellow',5,5,1,1],['purple',2,4,4,2],['orange',4,0,2,6]]},
+{n:7,p:[['red',0,4,6,1],['blue',6,1,0,4],['green',0,1,5,6],['yellow',5,6,0,1],['purple',2,2,4,5],['orange',4,5,2,2]]},
+{n:7,p:[['red',0,0,6,6],['blue',0,6,6,0],['green',2,0,4,6],['yellow',4,6,2,0],['purple',1,3,5,3],['orange',5,3,1,3]]},
+{n:7,p:[['red',0,5,6,2],['blue',6,2,0,5],['green',0,2,6,4],['yellow',6,4,0,2],['purple',1,1,5,5],['orange',5,1,1,5]]},
+{n:7,p:[['red',0,1,6,5],['blue',6,5,0,1],['green',1,2,5,4],['yellow',5,4,1,2],['purple',2,0,4,6],['orange',4,6,2,0]]},
+{n:7,p:[['red',0,6,6,0],['blue',0,0,6,6],['green',1,1,5,5],['yellow',1,5,5,1],['purple',2,2,4,4],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,2,6,4],['blue',6,4,0,2],['green',0,4,6,2],['yellow',6,2,0,4],['purple',1,3,5,3],['orange',5,3,1,3]]},
+{n:7,p:[['red',0,0,6,4],['blue',0,6,6,2],['green',6,0,2,6],['yellow',6,6,4,0],['purple',1,2,5,4],['orange',5,4,1,2]]},
+{n:7,p:[['red',0,3,6,3],['blue',6,0,0,6],['green',0,0,6,6],['yellow',6,6,0,0],['purple',2,1,4,5],['orange',4,5,2,1]]},
+{n:7,p:[['red',0,4,6,2],['blue',6,2,0,4],['green',1,0,5,6],['yellow',5,6,1,0],['purple',2,3,4,3],['orange',4,3,2,3]]},
+{n:7,p:[['red',0,1,6,5],['blue',6,5,0,1],['green',0,5,6,1],['yellow',6,1,0,5],['purple',2,2,4,4],['orange',4,4,2,2]]},
+{n:7,p:[['red',0,2,6,5],['blue',6,5,0,2],['green',0,5,6,2],['yellow',6,2,0,5],['purple',1,1,5,5],['orange',5,1,1,5]]},
+{n:7,p:[['red',0,0,6,5],['blue',0,6,6,1],['green',6,0,1,6],['yellow',6,6,5,0],['purple',2,2,4,4],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,5,6,1],['blue',6,1,0,5],['green',0,1,6,5],['yellow',6,5,0,1],['purple',2,3,4,3],['orange',4,3,2,3]]},
+{n:7,p:[['red',0,3,6,4],['blue',6,4,0,3],['green',1,0,5,6],['yellow',5,6,1,0],['purple',2,1,4,5],['orange',4,5,2,1]]},
+{n:7,p:[['red',0,6,6,0],['blue',0,0,6,6],['green',1,2,5,4],['yellow',5,4,1,2],['purple',2,5,4,1],['orange',4,1,2,5]]},
+{n:7,p:[['red',0,2,6,4],['blue',6,4,0,2],['green',0,4,6,2],['yellow',6,2,0,4],['purple',1,1,5,5],['orange',5,5,1,1]]},
+{n:7,p:[['red',0,0,6,6],['blue',0,6,6,0],['green',1,3,5,3],['yellow',3,1,3,5],['purple',2,2,4,4],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,1,6,6],['blue',0,6,6,1],['green',1,0,5,5],['yellow',5,5,1,0],['purple',2,3,4,3],['orange',4,3,2,3]]},
+{n:7,p:[['red',0,4,6,1],['blue',6,1,0,4],['green',0,0,6,5],['yellow',6,5,0,0],['purple',2,2,4,4],['orange',4,4,2,2]]},
+{n:7,p:[['red',0,5,6,2],['blue',6,2,0,5],['green',1,1,5,6],['yellow',5,6,1,1],['purple',2,3,4,3],['orange',4,3,2,3]]},
+{n:7,p:[['red',0,2,6,3],['blue',6,3,0,2],['green',0,6,6,4],['yellow',6,4,0,6],['purple',1,1,5,5],['orange',5,1,1,5]]},
+{n:7,p:[['red',0,0,6,4],['blue',0,6,6,2],['green',6,0,1,6],['yellow',6,6,5,0],['purple',2,2,4,4],['orange',4,2,2,4]]},
+{n:7,p:[['red',0,3,6,1],['blue',6,1,0,3],['green',0,1,6,5],['yellow',6,5,0,1],['purple',2,2,4,4],['orange',4,4,2,2]]},
+{n:7,p:[['red',0,4,6,2],['blue',6,2,0,4],['green',1,0,5,6],['yellow',5,6,1,0],['purple',2,3,4,3],['orange',4,5,2,1]]},
+{n:7,p:[['red',0,6,6,0],['blue',0,0,6,6],['green',1,2,5,4],['yellow',5,4,1,2],['purple',2,1,4,5],['orange',4,5,2,1]]}
+];
+let li=0,moves=0,stars=3,sel=null,state=[],doneCount=0;
+const board=document.querySelector('#board'),msg=document.querySelector('#message'),next=document.querySelector('#next');
+function load(){const L=levels[li];moves=0;sel=null;doneCount=0;state=L.p.map((x,i)=>({id:i,c:x[0],r:x[1],q:x[2],tr:x[3],tq:x[4],done:false}));document.querySelector('#level').textContent=li+1;document.querySelector('#moves').textContent=0;document.querySelector('#bar').style.width=((li+1)/levels.length*100)+'%';next.disabled=true;msg.textContent='Move each dot onto its matching lock.';render()}
+function render(){const L=levels[li];board.style.gridTemplateColumns=`repeat(${L.n},1fr)`;board.innerHTML='';
+for(let r=0;r<L.n;r++)for(let q=0;q<L.n;q++){const b=document.createElement('button');b.className='cell';let target=state.find(x=>x.tr===r&&x.tq===q),item=state.find(x=>x.r===r&&x.q===q);
+if(target){b.classList.add('lock',target.c);b.textContent='🔒';b.setAttribute('aria-label',target.c+' lock')}
+if(item){b.classList.add(item.c);if(item===sel)b.classList.add('selected');b.innerHTML='<span class="dot"></span>';b.setAttribute('aria-label',item.c+' dot')}
+b.onclick=()=>tap(r,q);board.appendChild(b)}}
+function tap(r,q){const item=state.find(x=>x.r===r&&x.q===q);
+if(item&&!item.done){sel=item;msg.textContent='Selected. Choose an adjacent empty square.';render();return}
+if(!sel)return;if(state.some(x=>x.r===r&&x.q===q)){msg.textContent='That square is occupied.';return}
+if(Math.abs(sel.r-r)+Math.abs(sel.q-q)!==1){msg.textContent='Move only one square at a time.';return}
+sel.r=r;sel.q=q;moves++;if(r===sel.tr&&q===sel.tq&&!sel.done){sel.done=true;doneCount++;msg.textContent='🔒 Lock opened!'}else msg.textContent='';sel=null;
+document.querySelector('#moves').textContent=moves;document.querySelector('#solved').textContent=doneCount;render();
+if(state.every(x=>x.done)){msg.textContent='🎉 Level complete!';stars++;document.querySelector('#stars').textContent=stars;next.disabled=false}}
+document.querySelector('#reset').onclick=load;
+document.querySelector('#next').onclick=()=>{if(li<levels.length-1){li++;load()}else{msg.textContent='🏆 You completed all 10 levels!';next.disabled=true}};
+document.querySelector('#hint').onclick=()=>{if(stars<=0){msg.textContent='No stars left.';return}const x=state.find(x=>!x.done);if(!x){msg.textContent='Level already complete!';return}stars--;document.querySelector('#stars').textContent=stars;msg.textContent=`💡 ${x.c.toUpperCase()} target is row ${x.tr+1}, column ${x.tq+1}.`};
+load();
+</script>
+</div>
